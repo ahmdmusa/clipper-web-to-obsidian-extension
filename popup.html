@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="dark">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Clipper — Web to Obsidian</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+    *,*::before,*::after { box-sizing:border-box; margin:0; padding:0 }
+
+    /* ── THEMES ─────────────────────────────── */
+    :root, [data-theme="dark"] {
+      --bg:      #0e0f17;
+      --surf:    #141620;
+      --surf2:   #1c1f2e;
+      --bdr:     #242740;
+      --bdr2:    #303560;
+      --acc:     #7c5cfc;
+      --acc2:    #a78bfa;
+      --acc-dim: rgba(124,92,252,.13);
+      --acc-glow:rgba(124,92,252,.28);
+      --txt:     #d4d6f0;
+      --txt2:    #8890b8;
+      --muted:   #555878;
+      --dim:     #343754;
+      --ok:      #4ade80;
+      --err:     #f87171;
+      --tog:     #2d3050;
+      --inp:     #0a0b12;
+    }
+    [data-theme="light"] {
+      --bg:      #f2f2fb;
+      --surf:    #ffffff;
+      --surf2:   #e8e8f6;
+      --bdr:     #d0d0ec;
+      --bdr2:    #b0b0d8;
+      --acc:     #5b3fd8;
+      --acc2:    #7c5cfc;
+      --acc-dim: rgba(91,63,216,.1);
+      --acc-glow:rgba(91,63,216,.2);
+      --txt:     #18192c;
+      --txt2:    #404068;
+      --muted:   #7070a0;
+      --dim:     #a0a0c8;
+      --ok:      #166534;
+      --err:     #991b1b;
+      --tog:     #c0c0e0;
+      --inp:     #ffffff;
+    }
+
+    html, body {
+      font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--txt);
+      width: 340px;
+      overflow: hidden;
+    }
+
+    /* ── PANEL SLIDE ─────────────────────────── */
+    .wrap  { width:340px; overflow:hidden }
+    .track { display:flex; width:680px; transition:transform .28s cubic-bezier(.4,0,.2,1) }
+    .track.at-settings { transform:translateX(-340px) }
+    .panel { width:340px; flex-shrink:0 }
+
+    /* ── HEADER ─────────────────────────────── */
+    .hdr {
+      background:var(--surf); border-bottom:2px solid var(--acc);
+      padding:11px 13px; display:flex; align-items:center; gap:9px;
+    }
+    .hdr-logo {
+      width:30px; height:30px; background:var(--acc); border-radius:8px;
+      display:grid; place-items:center; font-size:15px; flex-shrink:0;
+      box-shadow:0 0 12px var(--acc-glow);
+    }
+    .hdr-name { font-size:13px; font-weight:700; color:var(--txt); line-height:1.1 }
+    .hdr-sub  { font-size:9.5px; color:var(--acc2); font-family:'IBM Plex Mono',monospace; margin-top:2px }
+    .hdr-r    { margin-inline-start:auto }
+    .gear-btn {
+      background:var(--surf2); border:1px solid var(--bdr); border-radius:7px;
+      width:28px; height:28px; display:grid; place-items:center;
+      cursor:pointer; font-size:13px; color:var(--muted);
+      transition:background .15s, color .15s;
+    }
+    .gear-btn:hover { background:var(--bdr2); color:var(--txt) }
+
+    /* ── MAIN BODY ───────────────────────────── */
+    .body { padding:11px 11px 9px; display:flex; flex-direction:column; gap:9px }
+
+    /* Site indicator */
+    .site-bar {
+      display:flex; align-items:center; gap:7px; padding:6px 10px;
+      background:var(--surf); border:1px solid var(--bdr); border-radius:8px;
+      font-size:10.5px; color:var(--muted);
+    }
+    .dot {
+      width:6px; height:6px; border-radius:50%; background:var(--acc); flex-shrink:0;
+      animation:blink 2.5s ease-in-out infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+    #siteName { font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--acc2); font-weight:500 }
+
+    /* Section label */
+    .s-lbl {
+      font-size:9px; font-family:'IBM Plex Mono',monospace;
+      color:var(--dim); text-transform:uppercase; letter-spacing:1.4px;
+    }
+
+    /* Options grid */
+    .opts { display:grid; grid-template-columns:1fr 1fr; gap:5px }
+    .opt {
+      display:flex; align-items:center; gap:6px; padding:7px 8px;
+      background:var(--surf); border:1px solid var(--bdr); border-radius:8px;
+      cursor:pointer; user-select:none; transition:border-color .15s, background .15s;
+    }
+    .opt:hover { border-color:var(--bdr2); background:var(--surf2) }
+    .opt.on    { border-color:rgba(124,92,252,.45); background:var(--acc-dim) }
+    [data-theme="light"] .opt.on { border-color:rgba(91,63,216,.35) }
+    .opt-ico   { font-size:12px; flex-shrink:0 }
+    .opt-lbl   { font-size:10.5px; font-weight:600; color:var(--txt) }
+    .opt-dsc   { font-size:9px; color:var(--muted); margin-top:1px }
+
+    /* Toggle */
+    .tog {
+      appearance:none; flex-shrink:0; width:26px; height:14px;
+      background:var(--tog); border-radius:7px; cursor:pointer;
+      position:relative; transition:background .2s; outline:none;
+    }
+    .tog::after {
+      content:''; position:absolute; width:10px; height:10px;
+      border-radius:50%; background:var(--muted);
+      top:2px; inset-inline-start:2px;
+      transition:transform .2s, background .2s;
+    }
+    .tog:checked { background:rgba(124,92,252,.4) }
+    .tog:checked::after { transform:translateX(12px); background:var(--acc) }
+    [data-theme="light"] .tog:checked { background:rgba(91,63,216,.3) }
+
+    /* Clip button */
+    #clipBtn {
+      width:100%; padding:11px; background:var(--acc); color:#fff;
+      border:none; border-radius:9px; font-family:inherit; font-size:13px;
+      font-weight:700; cursor:pointer; letter-spacing:.3px;
+      transition:filter .15s, transform .15s, box-shadow .15s;
+    }
+    #clipBtn:hover:not(:disabled) {
+      filter:brightness(1.1); transform:translateY(-1px);
+      box-shadow:0 4px 16px var(--acc-glow);
+    }
+    #clipBtn:disabled { opacity:.5; cursor:not-allowed; transform:none }
+
+    /* Status */
+    .status {
+      display:none; padding:8px 9px; border-radius:8px;
+      font-size:10px; line-height:1.55; border:1px solid;
+      word-break:break-all; font-family:'IBM Plex Mono',monospace; white-space:pre-wrap;
+    }
+    .status.ok  { background:rgba(74,222,128,.07); border-color:rgba(74,222,128,.25); color:var(--ok) }
+    .status.err { background:rgba(248,113,113,.07); border-color:rgba(248,113,113,.25); color:var(--err) }
+
+    /* Preview */
+    #preview {
+      display:none; background:var(--surf); border:1px solid var(--bdr);
+      border-inline-start:3px solid var(--acc); border-radius:8px;
+      padding:7px 9px; font-family:'IBM Plex Mono',monospace;
+      font-size:9px; color:var(--dim); white-space:pre-wrap;
+      word-break:break-word; max-height:70px; overflow-y:auto;
+      direction:ltr; text-align:left;
+    }
+
+    /* Footer */
+    .ftr {
+      padding:7px 11px; background:var(--surf); border-top:1px solid var(--bdr);
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    .ftr-l { font-family:'IBM Plex Mono',monospace; font-size:9px; color:var(--dim) }
+    .sicos { display:flex; gap:3px }
+    .si    { font-size:10px; opacity:.35; cursor:default; transition:opacity .15s }
+    .si:hover { opacity:.85 }
+
+    /* ── SETTINGS PANEL ──────────────────────── */
+    .shdr {
+      background:var(--surf); border-bottom:2px solid var(--acc);
+      padding:11px 13px; display:flex; align-items:center; gap:9px;
+    }
+    #backBtn {
+      background:var(--surf2); border:1px solid var(--bdr); border-radius:7px;
+      padding:5px 10px; font-family:inherit; font-size:11px; font-weight:600;
+      color:var(--txt2); cursor:pointer; white-space:nowrap;
+      transition:background .15s, color .15s;
+    }
+    #backBtn:hover { background:var(--bdr2); color:var(--txt) }
+    .shdr-title { font-size:13px; font-weight:700; color:var(--txt) }
+
+    .sbody {
+      padding:13px 11px 16px; display:flex; flex-direction:column; gap:13px;
+      overflow-y:auto; max-height:470px;
+    }
+    .sbody::-webkit-scrollbar { width:3px }
+    .sbody::-webkit-scrollbar-thumb { background:var(--bdr2); border-radius:2px }
+
+    .srow { display:flex; flex-direction:column; gap:6px }
+    .srow-lbl {
+      font-size:9px; font-family:'IBM Plex Mono',monospace;
+      color:var(--dim); text-transform:uppercase; letter-spacing:1.3px;
+    }
+    .sep { height:1px; background:var(--bdr); margin:0 -11px }
+
+    /* Pills */
+    .pills { display:flex; gap:6px; flex-wrap:wrap }
+    .pill {
+      padding:6px 14px; background:var(--surf2); border:1px solid var(--bdr);
+      border-radius:20px; font-family:inherit; font-size:11.5px; font-weight:500;
+      color:var(--txt2); cursor:pointer; user-select:none; transition:all .18s;
+    }
+    .pill:hover { border-color:var(--bdr2); color:var(--txt) }
+    .pill.sel   { background:var(--acc); color:#fff; border-color:transparent; font-weight:700 }
+
+    /* Folder */
+    .fnote {
+      font-size:9.5px; color:var(--muted); line-height:1.6;
+      background:var(--surf2); border:1px solid var(--bdr);
+      border-radius:7px; padding:8px 9px; white-space:pre-wrap;
+    }
+    .frow { display:flex; gap:5px }
+    #folderInput {
+      flex:1; padding:7px 9px; background:var(--inp); border:1px solid var(--bdr2);
+      border-radius:8px; font-family:'IBM Plex Mono',monospace; font-size:11px;
+      color:var(--txt); direction:ltr; text-align:left;
+      outline:none; transition:border-color .18s;
+    }
+    #folderInput:focus { border-color:var(--acc) }
+    #folderInput::placeholder { color:var(--dim) }
+    #folderSaveBtn {
+      padding:7px 12px; background:var(--acc); color:#fff;
+      border:none; border-radius:8px; font-family:inherit;
+      font-size:11px; font-weight:700; cursor:pointer; white-space:nowrap;
+      transition:filter .15s;
+    }
+    #folderSaveBtn:hover { filter:brightness(1.1) }
+    #folderOK {
+      font-family:'IBM Plex Mono',monospace; font-size:10px;
+      color:var(--ok); opacity:0; transition:opacity .3s; height:12px;
+    }
+    .fprev {
+      font-family:'IBM Plex Mono',monospace; font-size:9.5px; color:var(--dim);
+      background:var(--surf2); border:1px solid var(--bdr);
+      border-radius:6px; padding:5px 8px; direction:ltr; text-align:left;
+      word-break:break-all;
+    }
+
+    /* About card */
+    .about-card {
+      background:var(--surf2); border:1px solid var(--bdr);
+      border-radius:10px; padding:14px; display:flex; flex-direction:column; gap:10px;
+    }
+    .about-logo-row { display:flex; align-items:center; gap:10px }
+    .about-logo {
+      width:38px; height:38px; background:var(--acc); border-radius:10px;
+      display:grid; place-items:center; font-size:18px; flex-shrink:0;
+      box-shadow:0 0 14px var(--acc-glow);
+    }
+    .about-name  { font-size:14px; font-weight:700; color:var(--txt) }
+    .about-ver   { font-size:10px; color:var(--muted); font-family:'IBM Plex Mono',monospace }
+    .about-desc  { font-size:11px; color:var(--txt2); line-height:1.65 }
+    .about-divider { height:1px; background:var(--bdr) }
+    .about-dev-row { display:flex; align-items:center; gap:8px }
+    .about-avatar {
+      width:32px; height:32px; border-radius:50%;
+      background:linear-gradient(135deg,var(--acc),var(--acc2));
+      display:grid; place-items:center; font-size:13px; flex-shrink:0;
+    }
+    .about-dev-name  { font-size:12px; font-weight:600; color:var(--txt) }
+    .about-dev-role  { font-size:10px; color:var(--muted) }
+    .about-links { display:flex; flex-direction:column; gap:5px }
+    .about-link {
+      display:flex; align-items:center; gap:7px;
+      padding:7px 10px; background:var(--surf); border:1px solid var(--bdr);
+      border-radius:8px; text-decoration:none; color:var(--txt2);
+      font-size:11px; font-family:'IBM Plex Mono',monospace;
+      transition:border-color .15s, color .15s, background .15s;
+    }
+    .about-link:hover { border-color:var(--acc2); color:var(--acc2); background:var(--acc-dim) }
+    .about-link .link-ico { font-size:13px }
+    .about-supported { display:flex; gap:5px; flex-wrap:wrap }
+    .site-badge {
+      padding:3px 8px; background:var(--surf); border:1px solid var(--bdr);
+      border-radius:12px; font-size:10px; color:var(--muted);
+    }
+  </style>
+</head>
+<body>
+
+<div class="wrap">
+<div class="track" id="track">
+
+  <!-- ═══════════ MAIN PANEL ═══════════════════ -->
+  <div class="panel">
+
+    <div class="hdr">
+      <div class="hdr-logo">📎</div>
+      <div>
+        <div class="hdr-name">Clipper</div>
+        <div class="hdr-sub" id="l-appSub">Web to Obsidian</div>
+      </div>
+      <div class="hdr-r">
+        <button class="gear-btn" id="openSettings" title="Settings">⚙️</button>
+      </div>
+    </div>
+
+    <div class="body">
+
+      <div class="site-bar">
+        <div class="dot"></div>
+        <span id="l-siteLabel">الموقع:</span>
+        <span id="siteName">…</span>
+      </div>
+
+      <div class="s-lbl" id="l-optsLabel">خيارات الحفظ</div>
+
+      <div class="opts">
+
+        <label class="opt on">
+          <span class="opt-ico">🖼️</span>
+          <div style="flex:1">
+            <div class="opt-lbl" id="l-oImg">صورة البوست</div>
+            <div class="opt-dsc" id="l-oImgD">og:image</div>
+          </div>
+          <input type="checkbox" class="tog" id="tImg" checked/>
+        </label>
+
+        <label class="opt on">
+          <span class="opt-ico">💬</span>
+          <div style="flex:1">
+            <div class="opt-lbl" id="l-oCmt">التعليقات</div>
+            <div class="opt-dsc" id="l-oCmtD">كل الردود</div>
+          </div>
+          <input type="checkbox" class="tog" id="tCmt" checked/>
+        </label>
+
+        <label class="opt on">
+          <span class="opt-ico">📊</span>
+          <div style="flex:1">
+            <div class="opt-lbl" id="l-oLike">التفاعل</div>
+            <div class="opt-dsc" id="l-oLikeD">likes / views</div>
+          </div>
+          <input type="checkbox" class="tog" id="tLike" checked/>
+        </label>
+
+        <label class="opt">
+          <span class="opt-ico">🧵</span>
+          <div style="flex:1">
+            <div class="opt-lbl" id="l-oThrd">الثريد</div>
+            <div class="opt-dsc" id="l-oThrdD">كل الثريد</div>
+          </div>
+          <input type="checkbox" class="tog" id="tThrd"/>
+        </label>
+
+      </div>
+
+      <button id="clipBtn">📎 Clip</button>
+      <div id="status" class="status"></div>
+      <div id="preview"></div>
+
+    </div>
+
+    <div class="ftr">
+      <span class="ftr-l">📎 Clipper · <a href="https://github.com/ahmdmusa/" target="_blank" style="color:var(--acc2);text-decoration:none">Ahmed Musa</a></span>
+      <div class="sicos">
+        <span class="si" title="Twitter/X">🐦</span>
+        <span class="si" title="Facebook">📘</span>
+        <span class="si" title="Reddit">🟠</span>
+        <span class="si" title="Any site">📄</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════ SETTINGS PANEL ════════════════ -->
+  <div class="panel">
+
+    <div class="shdr">
+      <button id="backBtn">← <span id="l-back">رجوع</span></button>
+      <div class="shdr-title" id="l-stitle">الإعدادات</div>
+    </div>
+
+    <div class="sbody">
+
+      <!-- Theme -->
+      <div class="srow">
+        <div class="srow-lbl" id="l-themeL">المظهر</div>
+        <div class="pills">
+          <button class="pill theme-pill sel" data-v="dark"  id="pill-dark">🌙 <span id="l-dark">داكن</span></button>
+          <button class="pill theme-pill"     data-v="light" id="pill-light">☀️ <span id="l-light">فاتح</span></button>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+
+      <!-- Language -->
+      <div class="srow">
+        <div class="srow-lbl" id="l-langL">اللغة</div>
+        <div class="pills">
+          <button class="pill lang-pill sel" data-v="ar">🇸🇦 عربي</button>
+          <button class="pill lang-pill"     data-v="en">🇬🇧 English</button>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+
+      <!-- Save Folder -->
+      <div class="srow">
+        <div class="srow-lbl" id="l-folderL">مجلد الحفظ</div>
+        <div class="fnote" id="l-folderNote">📁 مسار داخل مجلد التحميلات في Firefox
+
+للحفظ في Obsidian مباشرةً:
+Firefox → Settings → Downloads
+← اختار مجلد Obsidian Vault</div>
+        <div class="frow">
+          <input type="text" id="folderInput" placeholder="Obsidian Clipper"
+                 autocomplete="off" spellcheck="false"/>
+          <button id="folderSaveBtn" id="l-save">حفظ</button>
+        </div>
+        <div id="folderOK"></div>
+        <div class="fprev" id="folderPreview">📂 [Downloads]/Obsidian Clipper/clip….md</div>
+      </div>
+
+      <div class="sep"></div>
+
+      <!-- About -->
+      <div class="srow">
+        <div class="srow-lbl" id="l-aboutL">عن التطبيق</div>
+
+        <div class="about-card">
+
+          <div class="about-logo-row">
+            <div class="about-logo">📎</div>
+            <div>
+              <div class="about-name">Clipper</div>
+              <div class="about-ver">Web to Obsidian · v1.0.0</div>
+            </div>
+          </div>
+
+          <div class="about-desc" id="l-aboutDesc">
+            احفظ أي صفحة ويب، بوست، أو تغريدة كملف Markdown جاهز لـ Obsidian — مع التعليقات والصور والـ metadata.
+          </div>
+
+          <div class="about-divider"></div>
+
+          <div class="about-dev-row">
+            <div class="about-avatar">👨‍💻</div>
+            <div>
+              <div class="about-dev-name">Ahmed Musa</div>
+              <div class="about-dev-role" id="l-devRole">فكرة وتطوير</div>
+            </div>
+          </div>
+
+          <div class="about-links">
+            <a class="about-link" href="https://github.com/ahmdmusa/" target="_blank">
+              <span class="link-ico">🐙</span>
+              <span>github.com/ahmdmusa/</span>
+            </a>
+            <a class="about-link" href="https://github.com/ahmdmusa/clipper-web-to-obsidian" target="_blank">
+              <span class="link-ico">📦</span>
+              <span id="l-repoLink">Source Code · Report Issues</span>
+            </a>
+          </div>
+
+          <div class="about-divider"></div>
+
+          <div class="srow-lbl" id="l-supportedSites">المواقع المدعومة</div>
+          <div class="about-supported">
+            <span class="site-badge">🐦 Twitter / X</span>
+            <span class="site-badge">📘 Facebook</span>
+            <span class="site-badge">🟠 Reddit</span>
+            <span class="site-badge">🟧 Hacker News</span>
+            <span class="site-badge">📄 Any site</span>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- /track -->
+</div><!-- /wrap -->
+
+<script src="popup.js"></script>
+</body>
+</html>
